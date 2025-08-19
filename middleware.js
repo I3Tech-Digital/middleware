@@ -8,12 +8,12 @@ app.use(express.json());
 const target = "https://api.hinova.com.br/api/sga/v2";
 
 // Endpoint /healthy
-app.get("/healthy", (req, res) => {
+app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK" });
 });
 
 // Middleware que faz a requisição para a Hinova, captura o retorno e responde ao cliente
-app.use("/", async (req, res) => {
+app.use("/api/sga/v2", async (req, res) => {
   try {
     console.log(`[${new Date().toISOString()}] Requisição recebida: ${req.method} ${req.originalUrl}`);
 
