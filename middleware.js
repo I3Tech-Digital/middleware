@@ -7,6 +7,11 @@ app.use(express.json());
 // URL da API de destino
 const target = "https://api.hinova.com.br/api/sga/v2";
 
+// Endpoint /healthy
+app.get("/healthy", (req, res) => {
+  res.status(200).json({ status: "OK" });
+});
+
 // Middleware que faz a requisição para a Hinova, captura o retorno e responde ao cliente
 app.use("/", async (req, res) => {
   try {
@@ -62,7 +67,7 @@ app.use("/", async (req, res) => {
   }
 });
 
-// Sobe servidor na porta 8080
-app.listen(8080, () => {
-  console.log("Middleware rodando em http://localhost:8080");
+// Sobe servidor na porta 8081
+app.listen(8081, () => {
+  console.log("Middleware rodando em http://localhost:8081");
 });
