@@ -33,6 +33,17 @@ app.use("/api/sga/v2", async (req, res) => {
       validateStatus: () => true,
     };
 
+    // Log da requisição completa para Hinova
+    console.log(`[${new Date().toISOString()}] Enviando requisição para Hinova:`);
+    console.log(`  URL: ${url}`);
+    console.log(`  Método: ${req.method}`);
+    console.log(`  Headers: ${JSON.stringify(headers, null, 2)}`);
+    if (req.body && Object.keys(req.body).length > 0) {
+      console.log(`  Body: ${JSON.stringify(req.body, null, 2)}`);
+    } else {
+      console.log(`  Body: vazio`);
+    }
+
     const response = await axios(axiosConfig);
 
     // Tenta interpretar o corpo como texto/JSON para log
