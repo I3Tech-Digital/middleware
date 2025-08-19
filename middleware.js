@@ -67,7 +67,7 @@ app.use("/", async (req, res) => {
   }
 });
 
-// Sobe servidor na porta 8081
-app.listen(8081, () => {
-  console.log("Middleware rodando em http://localhost:8081");
+// Sobe servidor na porta 8080
+app.listen(8080, () => {
+  console.log("Middleware rodando em http://localhost:8080");
 });
