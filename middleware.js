@@ -27,6 +27,11 @@ app.use("/api/sga/v2", async (req, res) => {
     // Configura headers - remove host para evitar conflito
     const headers = { ...req.headers };
     delete headers.host;
+    
+    // Garante que Content-Type está definido para requisições com body
+    if (req.body && Object.keys(req.body).length > 0 && !headers['content-type'] && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     // Log da requisição completa para Hinova
     console.log(`[${new Date().toISOString()}] Enviando requisição para Hinova:`);
@@ -40,19 +45,21 @@ app.use("/api/sga/v2", async (req, res) => {
     }
 
     // Constrói comando curl
-    let curlCommand = `curl -s -i -X ${req.method}`;
+    let curlCommand = `curl -s -i --location -X ${req.method}`;
     
-    // Adiciona headers
+    // Adiciona headers - escapa valores de header corretamente
     Object.entries(headers).forEach(([key, value]) => {
-      curlCommand += ` -H "${key}: ${value}"`;
+      // Escapa aspas duplas nos valores dos headers
+      const escapedValue = String(value).replace(/"/g, '\\"');
+      curlCommand += ` --header "${key}: ${escapedValue}"`;
     });
 
     // Adiciona body se existir
     if (req.body && Object.keys(req.body).length > 0) {
       const bodyData = JSON.stringify(req.body);
-      // Escapa caracteres especiais para o shell de forma segura
-      const escapedBody = bodyData.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\$/g, '\\$').replace(/`/g, '\\`');
-      curlCommand += ` -d '${escapedBody}'`;
+      // Usa --data-raw para enviar dados exatamente como estão
+      const escapedBody = bodyData.replace(/'/g, "'\"'\"'");
+      curlCommand += ` --data-raw '${escapedBody}'`;
     }
 
     // Adiciona URL
