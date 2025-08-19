@@ -49,8 +49,10 @@ app.use("/api/sga/v2", async (req, res) => {
 
     // Adiciona body se existir
     if (req.body && Object.keys(req.body).length > 0) {
-      const bodyData = JSON.stringify(req.body).replace(/"/g, '\\"');
-      curlCommand += ` -d "${bodyData}"`;
+      const bodyData = JSON.stringify(req.body);
+      // Escapa caracteres especiais para o shell de forma segura
+      const escapedBody = bodyData.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\$/g, '\\$').replace(/`/g, '\\`');
+      curlCommand += ` -d '${escapedBody}'`;
     }
 
     // Adiciona URL
