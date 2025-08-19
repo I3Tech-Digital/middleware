@@ -20,6 +20,7 @@
   "homepage": "https://github.com/leoi3tech/middleware#readme",
   "dependencies": {
     "express": "^5.1.0",
-    "http-proxy-middleware": "^3.0.5"
+  "http-proxy-middleware": "^3.0.5",
+  "axios": "^1.5.0"
   }
 }
