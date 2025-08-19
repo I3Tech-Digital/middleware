@@ -5,7 +5,7 @@ const app = express();
 app.use(express.json());
 
 // URL da API de destino
-const target = "https://api.hinova.com.br/api/sga/v2";
+const target = "https://api.hinova.com.br";
 
 // Endpoint /healthy
 app.get("/health", (req, res) => {
