@@ -1,11 +1,15 @@
 import express from "express";
-import axios from "axios";
+import { exec } from "child_process";
+import { promisify } from "util";
 
 const app = express();
 app.use(express.json());
 
 // URL da API de destino
 const target = "https://api.hinova.com.br";
+
+// Promisify exec for async/await usage
+const execAsync = promisify(exec);
 
 // Endpoint /healthy
 app.get("/health", (req, res) => {
@@ -24,15 +28,6 @@ app.use("/api/sga/v2", async (req, res) => {
     const headers = { ...req.headers };
     delete headers.host;
 
-    const axiosConfig = {
-      method: req.method,
-      url,
-      headers,
-      data: req.body,
-      responseType: "arraybuffer",
-      validateStatus: () => true,
-    };
-
     // Log da requisição completa para Hinova
     console.log(`[${new Date().toISOString()}] Enviando requisição para Hinova:`);
     console.log(`  URL: ${url}`);
@@ -44,34 +39,85 @@ app.use("/api/sga/v2", async (req, res) => {
       console.log(`  Body: vazio`);
     }
 
-    const response = await axios(axiosConfig);
+    // Constrói comando curl
+    let curlCommand = `curl -s -i -X ${req.method}`;
+    
+    // Adiciona headers
+    Object.entries(headers).forEach(([key, value]) => {
+      curlCommand += ` -H "${key}: ${value}"`;
+    });
 
-    // Tenta interpretar o corpo como texto/JSON para log
-    let loggedBody = response.data;
-    try {
-      const text = Buffer.from(response.data).toString();
-      loggedBody = JSON.parse(text);
-      console.log(`[${new Date().toISOString()}] Resposta da Hinova para ${req.method} ${req.originalUrl}:\n${JSON.stringify(loggedBody, null, 2)}`);
-    } catch (e) {
-      try {
-        const text = Buffer.from(response.data).toString();
-        console.log(`[${new Date().toISOString()}] Resposta da Hinova para ${req.method} ${req.originalUrl}:\n${text}`);
-      } catch (e2) {
-        console.log(`[${new Date().toISOString()}] Resposta da Hinova para ${req.method} ${req.originalUrl}: <binário>`);
+    // Adiciona body se existir
+    if (req.body && Object.keys(req.body).length > 0) {
+      const bodyData = JSON.stringify(req.body).replace(/"/g, '\\"');
+      curlCommand += ` -d "${bodyData}"`;
+    }
+
+    // Adiciona URL
+    curlCommand += ` "${url}"`;
+
+    console.log(`[${new Date().toISOString()}] Comando curl: ${curlCommand}`);
+
+    // Executa curl
+    const { stdout, stderr } = await execAsync(curlCommand);
+
+    if (stderr) {
+      console.error(`[${new Date().toISOString()}] Erro curl stderr: ${stderr}`);
+    }
+
+    // Parse da resposta curl (headers + body)
+    const responseLines = stdout.split('\n');
+    let headersParsed = false;
+    let statusCode = 200;
+    let responseHeaders = {};
+    let bodyLines = [];
+
+    for (let i = 0; i < responseLines.length; i++) {
+      const line = responseLines[i];
+      
+      if (!headersParsed) {
+        if (line.startsWith('HTTP/')) {
+          // Extrai status code
+          const statusMatch = line.match(/HTTP\/[\d.]+\s+(\d+)/);
+          if (statusMatch) {
+            statusCode = parseInt(statusMatch[1]);
+          }
+        } else if (line.includes(':')) {
+          // Header
+          const [key, ...valueParts] = line.split(':');
+          const value = valueParts.join(':').trim();
+          responseHeaders[key.trim()] = value;
+        } else if (line.trim() === '') {
+          // Linha vazia indica fim dos headers
+          headersParsed = true;
+        }
+      } else {
+        // Body
+        bodyLines.push(line);
       }
     }
 
+    const responseBody = bodyLines.join('\n').trim();
+
+    // Log da resposta
+    try {
+      const parsedBody = JSON.parse(responseBody);
+      console.log(`[${new Date().toISOString()}] Resposta da Hinova para ${req.method} ${req.originalUrl}:\n${JSON.stringify(parsedBody, null, 2)}`);
+    } catch (e) {
+      console.log(`[${new Date().toISOString()}] Resposta da Hinova para ${req.method} ${req.originalUrl}:\n${responseBody || '<vazio>'}`);
+    }
+
     // Repassa status e headers ao cliente
-    res.status(response.status);
-    Object.entries(response.headers || {}).forEach(([key, value]) => {
+    res.status(statusCode);
+    Object.entries(responseHeaders).forEach(([key, value]) => {
       const low = key.toLowerCase();
       if (low === "transfer-encoding") return;
       if (low === "content-encoding") return; // evita problemas de dupla codificação
       res.setHeader(key, value);
     });
 
-    // Envia o corpo tal como recebido
-    res.send(Buffer.from(response.data));
+    // Envia o corpo da resposta
+    res.send(responseBody);
   } catch (err) {
     console.error("Erro ao consultar Hinova:", err.message || err);
     res.status(500).json({ error: "Erro ao consultar Hinova" });
