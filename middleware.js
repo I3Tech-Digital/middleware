@@ -24,9 +24,11 @@ app.use("/api/sga/v2", async (req, res) => {
     // Monta URL para Hinova
     const url = `${target}${req.originalUrl}`;
 
-    // Configura headers - remove host para evitar conflito
+    // Configura headers - remove headers problemáticos
     const headers = { ...req.headers };
     delete headers.host;
+    delete headers['content-length'];
+    delete headers['Content-Length'];
     
     // Garante que Content-Type está definido para requisições com body
     if (req.body && Object.keys(req.body).length > 0 && !headers['content-type'] && !headers['Content-Type']) {
